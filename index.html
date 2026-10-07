@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Main Kitchen Order Sheet</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+  :root{--ink:#1b2430;--line:#5b6b7f;--cat:#cfdcec;--head:#e6edf5;--input:#fffde8;--accent:#2f4b6e}
+  *{box-sizing:border-box}
+  body{margin:0;padding:16px;font-family:Calibri,"Segoe UI",Arial,sans-serif;color:var(--ink);background:#eef1f5}
+  .sheet{max-width:1200px;margin:0 auto;background:#fff;border:2px solid var(--line);padding:14px}
+  h1{margin:0 0 10px;text-align:center;font-size:26px;letter-spacing:.5px;background:var(--cat);border:1.5px solid var(--line);padding:8px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+  .toolbar .grp{display:flex;gap:6px;align-items:center;padding:4px 8px;border:1px solid #c5cfdb;border-radius:6px;background:#f7f9fc}
+  .toolbar .grp b{font-size:12px;color:var(--accent)}
+  button,select,input[type=month]{font:inherit;padding:6px 10px;border:1px solid var(--accent);background:#fff;color:var(--accent);border-radius:4px}
+  button{font-weight:600;cursor:pointer}
+  button:hover{background:var(--head)}
+  button.primary{background:var(--accent);color:#fff}
+  .hint{font-size:12px;color:#5b6b7f;margin:0 0 8px}
+
+.header{display:grid;grid-template-columns:repeat(3,1fr);border:1.5px solid var(–line);margin-bottom:12px}
+.header label{display:flex;flex-direction:column;gap:4px;padding:8px 10px;font-weight:700;border-right:1.5px solid var(–line);background:var(–head)}
+.header label:last-child{border-right:0}
+.header input{font:inherit;font-weight:500;padding:6px;border:1px solid var(–line);background:var(–input)}
+.fmt{font-weight:500;font-size:13px;color:var(–accent)}
+
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th,td{border:1px solid var(–line);padding:0;height:30px}
+thead th{background:var(–head);font-weight:700;font-size:14px;position:sticky;top:0;z-index:2}
+td.sn{text-align:center;font-weight:700;width:11%}
+th.q,td.q{width:17%}
+tr:not(.cat) td.sn,tr:not(.cat) td.nm{background:color-mix(in srgb,var(–c) 22%,#fff)}
+td.nm{font-weight:700}
+tr.cat td{background:var(–c);font-weight:800;height:32px}
+td input{width:100%;height:100%;border:0;background:var(–input);font:inherit;padding:0 6px}
+td.nm input{font-weight:700;background:transparent}
+td.q input{text-align:center}
+td input:focus{outline:2px solid var(–accent);outline-offset:-2px}
+.catwrap{display:flex;align-items:center;height:100%}
+.cat .name{flex:1;text-align:center;font-weight:800;background:transparent;font-size:15px;color:inherit}
+input.clr{width:34px;height:26px;padding:0;margin:0 4px;border:1px solid #fff;background:none;cursor:pointer;flex:none}
+.rm{border:0;background:transparent;color:#a33;padding:0;width:100%;font-size:16px}
+td.x{width:26px}
+.addrow{background:transparent;border:0;color:var(–accent);font-size:12px;padding:3px 6px;text-align:left;width:100%}
+
+.approval{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.approval div{border:1.5px solid var(–line);padding:8px 10px;font-weight:700;background:var(–head)}
+.approval input{display:block;width:100%;margin-top:22px;border:0;border-bottom:1px solid var(–ink);background:var(–input);font:inherit;padding:4px}
+
+@media (max-width:800px){.cols{grid-template-columns:1fr}.header{grid-template-columns:1fr}.header label{border-right:0;border-bottom:1.5px solid var(–line)}}
+@page{size:A4 landscape;margin:8mm}
+@media print{
+body{background:#fff;padding:0}
+.sheet{border:0;padding:0;max-width:none}
+.toolbar,.hint,.rm,.x,.addrow,input.clr{display:none!important}
+td,th{height:20px} tr.cat td{height:22px}
+h1{font-size:18px;padding:4px;margin-bottom:6px}
+*{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+td input{background:transparent!important;font-size:11px}
+.header input{background:transparent}
+tr{break-inside:avoid}
+}
+</style>
+
+</head>
+<body>
+<div class="sheet">
+  <h1>MAIN KITCHEN ORDER SHEET</h1>
+
+  <div class="toolbar">
+    <div class="grp"><b>Order</b>
+      <button class="primary" onclick="newOrder()">New order (keeps names)</button>
+      <select id="saved" onchange="openSaved(this.value)"><option value="">Saved orders…</option></select>
+    </div>
+    <div class="grp"><b>Excel</b>
+      <button class="primary" onclick="exportDay()">Export day</button>
+      <input type="month" id="month" aria-label="Month to export">
+      <button class="primary" onclick="exportMonth()">Export month</button>
+    </div>
+    <div class="grp"><b>Layout</b>
+      <button onclick="addCategory('left')">+ Category (left)</button>
+      <button onclick="addCategory('right')">+ Category (right)</button>
+    </div>
+    <div class="grp">
+      <button onclick="window.print()">Print</button>
+      <button onclick="clearQty()">Clear quantities</button>
+      <button onclick="resetTemplate()">Reset template</button>
+    </div>
+  </div>
+  <p class="hint">Item names, categories and section colours are kept automatically as your template. Use the colour box in each section header to change its colour. Every order is saved by requisition date.</p>
+
+  <div class="header">
+    <label>DATE OF REQUISITION
+      <input type="date" id="reqDate"><span class="fmt" id="reqFmt"></span>
+    </label>
+    <label>Latest to Delivery
+      <input type="date" id="delDate"><span class="fmt" id="delFmt"></span>
+    </label>
+    <label>Raised By
+      <input type="text" id="raisedBy" list="people" placeholder="Select or type name">
+      <datalist id="people"><option value="Chef de Cuisine"><option value="Sous Chef"><option value="Store Keeper"><option value="Kitchen Supervisor"></datalist>
+    </label>
+  </div>
+
+  <div class="cols">
+    <table id="left"><thead><tr><th style="width:11%">S.No</th><th>Vegetables</th><th class="q">Qty in Hand</th><th class="q">Qty Req.</th><th class="x"></th></tr></thead><tbody></tbody></table>
+    <table id="right"><thead><tr><th style="width:11%">S.No</th><th>English Vegetables</th><th class="q">Qty in Hand</th><th class="q">Qty Req.</th><th class="x"></th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="approval">
+    <div>Approved By<input type="text" id="approvedBy" placeholder="Name / signature"></div>
+    <div>Executive Chef<input type="text" id="execChef" placeholder="Name / signature"></div>
+  </div>
+</div>
+
+<script>
+/* Default template. Put item names inside items: [] to match your reference image. */
+const DEFAULT = {
+  left: ["Vegetables","Herbs","Fruits","Frozen","Dairy Products","Frozen Non Veg","Fuel"],
+  right:["English Vegetables","Chinese","Highly Perishable NV","Cheese","Required Date","Staff Cafeteria"]
+};
+const DEFAULT_ITEMS = {};            // e.g. {"Vegetables":["Onion","Potato"]}
+const PALETTE = ["#cfdcec","#d9ead3","#fff2cc","#f9d9c8","#e1d5ee","#d0e8e8","#f4cccc","#e6e6e6"];
+const BLANK_ROWS = 4;
+const K_CUR="mko.current.v2", K_ORD="mko.orders.v2", K_TPL="mko.tpl.v2";
+
+const $ = id => document.getElementById(id);
+const clone = o => JSON.parse(JSON.stringify(o));
+const loadJSON = k => { try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } };
+const saveJSON = (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
+const iso = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const ddmmyyyy = v => v ? v.split("-").reverse().join("/") : "";
+const tomorrow = () => { const d=new Date(); d.setDate(d.getDate()+1); return iso(d); };
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+function textOn(hex){ const n=parseInt(hex.slice(1),16),r=n>>16,g=n>>8&255,b=n&255; return (0.299*r+0.587*g+0.114*b)>150 ? "#1b2430" : "#ffffff"; }
+
+/* ---------- template + orders ---------- */
+function defaultTpl(){
+  const mk = side => DEFAULT[side].map((cat,i) => ({cat, color:PALETTE[(side==="left"?i:i+3)%PALETTE.length], items:DEFAULT_ITEMS[cat]||[]}));
+  return {left:mk("left"), right:mk("right")};
+}
+function tplFrom(s){
+  const mk = side => s[side].map(c => ({cat:c.cat, color:c.color, items:c.rows.map(r=>r.n)}));
+  return {left:mk("left"), right:mk("right")};
+}
+function fromTemplate(prev){
+  const t = loadJSON(K_TPL) || defaultTpl();
+  const mk = side => t[side].map(c => ({cat:c.cat, color:c.color,
+    rows:(c.items.length ? c.items : Array(BLANK_ROWS).fill("")).map(n => ({n, h:"", r:""}))}));
+  return {head:{reqDate:tomorrow(), delDate:"", raisedBy:prev?prev.raisedBy||"":"", approvedBy:"", execChef:prev?prev.execChef||"":""},
+          left:mk("left"), right:mk("right")};
+}
+
+let ORD = loadJSON(K_ORD) || {};
+let S = loadJSON(K_CUR);
+if (!S || !S.head || !S.head.reqDate || S.head.reqDate < tomorrow()) {
+  S = fromTemplate(S && S.head);                         // new day: fresh sheet, names kept, date = tomorrow
+  if (ORD[S.head.reqDate]) S = clone(ORD[S.head.reqDate]);
+  persist(false);
+}
+
+function persist(structural){
+  saveJSON(K_CUR, S);
+  if (S.head.reqDate) ORD[S.head.reqDate] = clone(S);
+  saveJSON(K_ORD, ORD);
+  if (structural) saveJSON(K_TPL, tplFrom(S));
+  refreshSaved();
+}
+function refreshSaved(){
+  const sel = $("saved");
+  sel.innerHTML = '<option value="">Saved orders…</option>' +
+    Object.keys(ORD).sort().reverse().map(d => `<option value="${d}">${ddmmyyyy(d)}</option>`).join("");
+}
+
+/* ---------- header fields ---------- */
+function showFmt(){ $("reqFmt").textContent = ddmmyyyy($("reqDate").value); $("delFmt").textContent = ddmmyyyy($("delDate").value); }
+function setHead(){
+  $("reqDate").value = S.head.reqDate || ""; $("delDate").value = S.head.delDate || "";
+  $("raisedBy").value = S.head.raisedBy || ""; $("approvedBy").value = S.head.approvedBy || ""; $("execChef").value = S.head.execChef || "";
+  $("month").value = (S.head.reqDate || tomorrow()).slice(0,7);
+  showFmt();
+}
+$("reqDate").addEventListener("input", e => {
+  const nw = e.target.value, old = S.head.reqDate; if (!nw) return;
+  if (nw !== old) {
+    if (ORD[nw]) { S = clone(ORD[nw]); setHead(); render(); persist(false); return; }   // a saved order exists for that date: open it
+    delete ORD[old]; S.head.reqDate = nw;                                              // otherwise re-date this order
+  }
+  showFmt(); persist(false);
+});
+$("delDate").addEventListener("input", e => { S.head.delDate = e.target.value; showFmt(); persist(false); });
+["raisedBy","approvedBy","execChef"].forEach(id => $(id).addEventListener("input", e => { S.head[id]=e.target.value; persist(false); }));
+
+/* ---------- table ---------- */
+function render(){
+  for (const side of ["left","right"]) {
+    let html = "", n = 0;
+    S[side].forEach((c, ci) => {
+      const sec = side+"-"+ci;
+      html += `<tr class="cat" data-sec="${sec}" style="--c:${c.color};color:${textOn(c.color)}"><td colspan="4"><div class="catwrap">
+        <input class="name" value="${esc(c.cat)}" data-side="${side}" data-ci="${ci}" data-f="cat" aria-label="Category name">
+        <input type="color" class="clr" value="${c.color}" data-side="${side}" data-ci="${ci}" data-f="color" title="Section colour" aria-label="Section colour"></div></td>
+        <td class="x"><button class="rm" title="Delete category" onclick="delCat('${side}',${ci})">✕</button></td></tr>`;
+      c.rows.forEach((r, ri) => {
+        n++;
+        html += `<tr data-sec="${sec}" style="--c:${c.color}"><td class="sn">${n}</td>
+          <td class="nm"><input value="${esc(r.n)}" data-side="${side}" data-ci="${ci}" data-ri="${ri}" data-f="n" placeholder="Item name" aria-label="Item name"></td>
+          <td class="q"><input type="number" min="0" step="any" inputmode="decimal" value="${esc(r.h)}" data-side="${side}" data-ci="${ci}" data-ri="${ri}" data-f="h" aria-label="Qty in hand"></td>
+          <td class="q"><input type="number" min="0" step="any" inputmode="decimal" value="${esc(r.r)}" data-side="${side}" data-ci="${ci}" data-ri="${ri}" data-f="r" aria-label="Qty required"></td>
+          <td class="x"><button class="rm" title="Delete row" onclick="delRow('${side}',${ci},${ri})">✕</button></td></tr>`;
+      });
+      html += `<tr><td colspan="5" style="height:auto;border:0"><button class="addrow" onclick="addRow('${side}',${ci})">+ Add item to ${esc(c.cat)}</button></td></tr>`;
+    });
+    document.querySelector("#"+side+" tbody").innerHTML = html;
+  }
+}
+document.addEventListener("input", e => {
+  const t = e.target, d = t.dataset; if (!d.side) return;
+  const c = S[d.side][d.ci];
+  if (d.f === "color") {
+    c.color = t.value;
+    document.querySelectorAll(`tr[data-sec="${d.side}-${d.ci}"]`).forEach(tr => {
+      tr.style.setProperty("--c", t.value);
+      if (tr.classList.contains("cat")) tr.style.color = textOn(t.value);
+    });
+    persist(true); return;
+  }
+  if (d.f === "cat") { c.cat = t.value; persist(true); return; }
+  if (d.f === "n") { c.rows[d.ri].n = t.value; persist(true); return; }
+  let v = t.value; if (v !== "" && Number(v) < 0) { v = ""; t.value = ""; }
+  c.rows[d.ri][d.f] = v; persist(false);
+});
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter" || !e.target.dataset.f) return;
+  const all = [...document.querySelectorAll(`#${e.target.dataset.side} input[data-f="${e.target.dataset.f}"]`)];
+  const nxt = all[all.indexOf(e.target)+1]; if (nxt) { nxt.focus(); e.preventDefault(); }
+});
+function addRow(side,ci){ S[side][ci].rows.push({n:"",h:"",r:""}); persist(true); render(); }
+function delRow(side,ci,ri){ S[side][ci].rows.splice(ri,1); persist(true); render(); }
+function addCategory(side){
+  const name = prompt("New category / department name:"); if (!name) return;
+  const color = PALETTE[S[side].length % PALETTE.length];
+  S[side].push({cat:name, color, rows:Array.from({length:BLANK_ROWS}, () => ({n:"",h:"",r:""}))});
+  persist(true); render();
+}
+function delCat(side,ci){ if (confirm("Delete this category and its items?")) { S[side].splice(ci,1); persist(true); render(); } }
+function clearQty(){ if (!confirm("Clear all quantities on this order?")) return;
+  for (const s of ["left","right"]) S[s].forEach(c => c.rows.forEach(r => { r.h=""; r.r=""; })); persist(false); render(); }
+function resetTemplate(){ if (!confirm("Reset names and colours to the default template? Saved orders are kept.")) return;
+  localStorage.removeItem(K_TPL); S = fromTemplate(S.head); S.head.reqDate = S.head.reqDate; persist(false); setHead(); render(); }
+function newOrder(){
+  const t = tomorrow();
+  if (ORD[t]) { S = clone(ORD[t]); alert("An order for "+ddmmyyyy(t)+" already exists. Opened it."); }
+  else S = fromTemplate(S.head);
+  persist(false); setHead(); render();
+}
+function openSaved(d){ if (!d || !ORD[d]) return; S = clone(ORD[d]); persist(false); setHead(); render(); $("saved").value = ""; }
+
+/* ---------- Excel export (ExcelJS) ---------- */
+const hasQty = o => ["left","right"].some(s => o[s].some(c => c.rows.some(r => r.h!=="" || r.r!=="")));
+const argb = h => "FF"+h.replace("#","").toUpperCase();
+function tint(hex,p){
+  const n=parseInt(hex.slice(1),16), m=c=>Math.round(c*p+255*(1-p));
+  return "FF"+[n>>16,n>>8&255,n&255].map(m).map(x=>x.toString(16).padStart(2,"0")).join("").toUpperCase();
+}
+const dateObj = v => { if(!v) return null; const [y,m,d]=v.split("-").map(Number); return new Date(Date.UTC(y,m-1,d)); };
+const numOrText = v => (v!=="" && !isNaN(v)) ? Number(v) : (v||null);
+
+function buildDay(wb, o, title){
+  const ws = wb.addWorksheet(title, {views:[{state:"frozen",ySplit:5}],
+    pageSetup:{paperSize:9,orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0,
+      margins:{left:.3,right:.3,top:.4,bottom:.4,header:.2,footer:.2}}});
+  ws.columns = [{width:7},{width:34},{width:13},{width:13},{width:3},{width:7},{width:34},{width:13},{width:13}];
+  const thin={style:"thin",color:{argb:"FF5B6B7F"}}, bd={top:thin,left:thin,bottom:thin,right:thin};
+  const HEAD="FFE6EDF5", INPUT="FFFFFDE8";
+  const box=(cell,v,op={})=>{ cell.value=v; cell.border=bd;
+    cell.font={bold:!!op.bold,size:op.size||11,color:{argb:op.color||"FF1B2430"}};
+    cell.alignment={vertical:"middle",horizontal:op.h||"left"};
+    if(op.fill) cell.fill={type:"pattern",pattern:"solid",fgColor:{argb:op.fill}}; };
+  const merge=(a,b)=>ws.mergeCells(a+":"+b);
+  const numDV={type:"decimal",operator:"greaterThanOrEqual",formulae:[0],allowBlank:true,showErrorMessage:true,errorTitle:"Numbers only",error:"Enter a number (0 or more)."};
+  const dateDV={type:"date",operator:"greaterThan",formulae:[new Date(Date.UTC(2020,0,1))],allowBlank:true,showErrorMessage:true,errorTitle:"Invalid date",error:"Enter a valid date."};
+
+  merge("A1","I1"); box(ws.getCell("A1"),"MAIN KITCHEN ORDER SHEET",{bold:true,size:18,h:"center",fill:"FFCFDCEC"}); ws.getRow(1).height=32;
+  merge("A2","B2"); box(ws.getCell("A2"),"DATE OF REQUISITION",{bold:true,fill:HEAD});
+  merge("C2","D2"); box(ws.getCell("C2"),dateObj(o.head.reqDate),{h:"center",fill:INPUT}); ws.getCell("C2").numFmt="dd/mm/yyyy"; ws.getCell("C2").dataValidation=dateDV;
+  merge("F2","G2"); box(ws.getCell("F2"),"Latest to Delivery",{bold:true,fill:HEAD});
+  merge("H2","I2"); box(ws.getCell("H2"),dateObj(o.head.delDate),{h:"center",fill:INPUT}); ws.getCell("H2").numFmt="dd/mm/yyyy"; ws.getCell("H2").dataValidation=dateDV;
+  merge("A3","B3"); box(ws.getCell("A3"),"Raised By",{bold:true,fill:HEAD});
+  merge("C3","D3"); box(ws.getCell("C3"),o.head.raisedBy||null,{fill:INPUT});
+  ["A2","F2","A3"].forEach(a=>ws.getRow(ws.getCell(a).row).height=22);
+
+  [["A","Vegetables"],["F","English Vegetables"]].forEach(([col,label],i)=>{
+    const off=i*5+1; ["S.No",label,"Qty in Hand","Qty Req."].forEach((t,k)=>box(ws.getCell(5,off+k),t,{bold:true,h:k==1?"left":"center",fill:HEAD}));
+  });
+
+  const lines = side => { const out=[]; let n=0; o[side].forEach(c=>{ out.push({cat:c}); c.rows.forEach(r=>{ n++; out.push({r,n,c}); }); }); return out; };
+  const L=lines("left"), R=lines("right"), max=Math.max(L.length,R.length);
+  const put=(it,row,off)=>{
+    if(!it) return;
+    if(it.cat){ ws.mergeCells(row,off,row,off+3);
+      box(ws.getCell(row,off),it.cat.cat,{bold:true,size:12,h:"center",fill:argb(it.cat.color),color:argb(textOn(it.cat.color))});
+      for(let k=1;k<4;k++) ws.getCell(row,off+k).border=bd; return; }
+    const tn=tint(it.c.color,.22);
+    box(ws.getCell(row,off),it.n,{bold:true,h:"center",fill:tn});
+    box(ws.getCell(row,off+1),it.r.n||null,{bold:true,fill:tn});
+    [["h",2],["r",3]].forEach(([f,k])=>{ const cell=ws.getCell(row,off+k); box(cell,numOrText(it.r[f]),{h:"center",fill:INPUT}); cell.dataValidation=numDV; });
+  };
+  for(let i=0;i<max;i++){ put(L[i],6+i,1); put(R[i],6+i,6); ws.getRow(6+i).height=21; }
+
+  const fr=6+max+1;
+  merge("A"+fr,"B"+fr); box(ws.getCell("A"+fr),"Approved By",{bold:true,fill:HEAD});
+  merge("C"+fr,"D"+fr); box(ws.getCell("C"+fr),o.head.approvedBy||null,{fill:INPUT});
+  merge("F"+fr,"G"+fr); box(ws.getCell("F"+fr),"Executive Chef",{bold:true,fill:HEAD});
+  merge("H"+fr,"I"+fr); box(ws.getCell("H"+fr),o.head.execChef||null,{fill:INPUT});
+  ws.getRow(fr).height=34;
+  ws.pageSetup.printArea="A1:I"+fr; ws.pageSetup.printTitlesRow="5:5";
+}
+
+async function download(wb,name){
+  const buf = await wb.xlsx.writeBuffer();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+  a.download = name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+const libOk = () => typeof ExcelJS !== "undefined" || (alert("The Excel library did not load. Check your internet connection and reload."), false);
+
+async function exportDay(){
+  if(!libOk()) return;
+  if(!S.head.reqDate){ alert("Pick a requisition date first."); return; }
+  const tag = ddmmyyyy(S.head.reqDate).replace(/\//g,"-");
+  const wb = new ExcelJS.Workbook(); buildDay(wb,S,tag);
+  await download(wb,"Kitchen-Order-"+tag+".xlsx");
+}
+
+async function exportMonth(){
+  if(!libOk()) return;
+  const m = $("month").value; if(!m){ alert("Choose a month."); return; }
+  const dates = Object.keys(ORD).filter(d=>d.startsWith(m) && hasQty(ORD[d])).sort();
+  if(!dates.length){ alert("No saved orders with quantities for that month."); return; }
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Month Summary",{views:[{state:"frozen",xSplit:2,ySplit:3}],
+    pageSetup:{paperSize:9,orientation:"landscape",fitToPage:true,fitToWidth:1,fitToHeight:0}});
+  const items = new Map(), catOrder = [];
+  dates.forEach(d => ["left","right"].forEach(side => ORD[d][side].forEach(c => {
+    if(!catOrder.includes(c.cat)) catOrder.push(c.cat);
+    c.rows.forEach(r => { const nm=(r.n||"").trim(); if(!nm) return;
+      const k=c.cat+"\u0001"+nm; if(!items.has(k)) items.set(k,{cat:c.cat,color:c.color,name:nm,q:{}});
+      const q=parseFloat(r.r); if(!isNaN(q)) items.get(k).q[d]=(items.get(k).q[d]||0)+q; });
+  })));
+  const list=[...items.values()].sort((a,b)=>catOrder.indexOf(a.cat)-catOrder.indexOf(b.cat));
+  const thin={style:"thin",color:{argb:"FF5B6B7F"}}, bd={top:thin,left:thin,bottom:thin,right:thin};
+  const nCols=2+dates.length+1;
+  ws.mergeCells(1,1,1,nCols);
+  const t=ws.getCell(1,1); t.value="MAIN KITCHEN ORDER SHEET - MONTH SUMMARY (Qty Req.) "+m.split("-").reverse().join("/");
+  t.font={bold:true,size:16}; t.alignment={horizontal:"center",vertical:"middle"};
+  t.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFCFDCEC"}}; ws.getRow(1).height=30;
+  ["Category","Item",...dates.map(d=>ddmmyyyy(d).slice(0,5)),"Total"].forEach((h,i)=>{
+    const c=ws.getCell(3,i+1); c.value=h; c.font={bold:true}; c.border=bd; c.alignment={horizontal:i<2?"left":"center"};
+    c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFE6EDF5"}}; });
+  ws.getColumn(1).width=24; ws.getColumn(2).width=34; for(let i=3;i<=nCols;i++) ws.getColumn(i).width=9;
+  list.forEach((it,i)=>{
+    const r=4+i, fill={type:"pattern",pattern:"solid",fgColor:{argb:tint(it.color,.5)}};
+    ws.getCell(r,1).value=it.cat; ws.getCell(r,2).value=it.name;
+    dates.forEach((d,j)=>{ ws.getCell(r,3+j).value = it.q[d]!==undefined ? it.q[d] : null; });
+    const first=ws.getCell(r,3).address, last=ws.getCell(r,2+dates.length).address;
+    ws.getCell(r,nCols).value={formula:`SUM(${first}:${last})`, result:Object.values(it.q).reduce((a,b)=>a+b,0)};
+    for(let c=1;c<=nCols;c++){ const cell=ws.getCell(r,c); cell.border=bd; if(c<=2){ cell.fill=fill; cell.font={bold:true}; } else cell.alignment={horizontal:"center"}; }
+    ws.getCell(r,nCols).font={bold:true};
+  });
+  dates.forEach(d => buildDay(wb, ORD[d], ddmmyyyy(d).replace(/\//g,"-")));
+  await download(wb,"Kitchen-Orders-"+m+".xlsx");
+}
+
+setHead(); render(); refreshSaved();
+</script>
+
+</body>
+</html>
